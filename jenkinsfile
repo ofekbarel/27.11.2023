@@ -1,21 +1,49 @@
-pipeline {
+def getDockerTag(){
+    def tag = bat script: 'git rev-parse HEAD' , returnStdout:ture
+    return tag   
+}
+
+
+pipeline{
     agent any
     tools{
         maven 'Maven'
     }
+
+    environment {
+        Docker_tag = getDockerTag()
+      }
+
     stages{
-        stage('Build Maven'){
+        
+
+    
+
+        stage('sonar gate status'){
             steps{
-                checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/ofekbarel/27.11.2023']]])
+                withSonarQubeEnv('sonarserver') {
+                bat "mvn sonar:sonar"
+                               } 
+          
                 bat 'mvn clean install'
             }
         }
-        stage('Build docker image'){
+
+        stage('build and push docker') {
             steps{
                 script{
-                    bat 'docker build -t ofekimage .'
+                    bat 'docker build . -t ofekbarel11/ofekimagee:Docker_tag'
+                    withCredentials([string(credentialsId: 'docker-pwd', variable: 'dockerpwd')]) {
+                         bat 'docker login -u ofekbarel11 -p ${dockerpwd}'
+                            bat 'docker push ofekbarel11/ofekimagee:Docker_tag'
+                            
+
+    
+    
+                    }
                 }
+                
             }
         }
     }
-}   
+}    
